@@ -1,0 +1,6 @@
+image: techx307.pgm
+resolution: 0.0504
+origin: [12.900000, 10.50000, 3.14]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
