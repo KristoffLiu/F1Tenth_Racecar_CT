@@ -186,7 +186,7 @@ def main():
             plt.axis("equal")
             plt.grid(True)
             plt.title("Speed[km/h]:" + str(state.v * 3.6)[:4])
-            plt.pause(0.001)
+            plt.pause(0.00001)
 
     # Test
     assert lastIndex >= target_ind, "Cannot goal"
