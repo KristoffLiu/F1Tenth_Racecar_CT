@@ -141,6 +141,20 @@ def plot_arrow(x, y, yaw, length=1.0, width=0.5, fc="r", ec="k"):
                   fc=fc, ec=ec, head_width=width, head_length=width)
         plt.plot(x, y)
 
+class Pursuit():
+    def __init__(self, ix, iy, u, v, path, T):
+        self.initialState = State(ix, iy, u)
+        self.
+        pass
+    
+    def step():
+        
+
+    def tracking(self,):
+
+        di, target_ind = pure_pursuit_steer_control(
+            state, target_course, target_ind)
+
 
 def main():
     #  target course

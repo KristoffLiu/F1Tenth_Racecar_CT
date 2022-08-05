@@ -5,12 +5,29 @@ import rospy
 import numpy as np
 from sensor_msgs.msg import LaserScan
 
-def callback()
-
 scan_topic = '/scan'
 scan_sub = rospy.Subscriber(scan_topic, LaserScan, callback)
 
 FILLER_VALUE = 100.0
+
+def callback(data):
+
+    ...
+    global speed
+    global steering_angle
+    global distance_set
+    distance_set = [get_range(data, i) for i in range(90, -91, -1)]
+
+    set_speedmode(4)
+    wall_following(distance_apart=1.0)
+    distant_narrow_front_perception()
+    near_wide_front_perception()
+    wheel()
+
+    # steering_angle = 0 radian in range [-0.4189, 0.4189]
+    drive_msg = AckermannDrive(steering_angle=steering_angle, speed=speed)
+    drive_st_msg = AckermannDriveStamped(drive=drive_msg)
+    drive_pub.publish(drive_st_msg)
 
 def get_range(data, angle, deg=True):
     """
@@ -32,19 +49,3 @@ def get_range(data, angle, deg=True):
         dis = FILLER_VALUE
     return dis
 
-def callback(data):
-    global speed
-    global steering_angle
-    global distance_set
-    distance_set = [get_range(data, i) for i in range(90, -91, -1)]
-
-    set_speedmode(4)
-    wall_following(distance_apart=1.0)
-    distant_narrow_front_perception()
-    near_wide_front_perception()
-    wheel()
-
-    # steering_angle = 0 radian in range [-0.4189, 0.4189]
-    drive_msg = AckermannDrive(steering_angle=steering_angle, speed=speed)
-    drive_st_msg = AckermannDriveStamped(drive=drive_msg)
-    drive_pub.publish(drive_st_msg)
