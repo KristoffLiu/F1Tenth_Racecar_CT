@@ -51,3 +51,5 @@ qtcreator-*
 CATKIN_IGNORE
 .catkin_workspace
 src/CMakeLists.txt
+.vscode/settings.json
+.vscode/launch.json
