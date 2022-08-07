@@ -4,33 +4,22 @@ author: Erno Horvath, Csaba Hajdu based on Atsushi Sakai's scripts
 """
 
 from cmath import pi
+from dis import dis
 import math
 from collections import deque
 from pickle import FALSE
+from turtle import left
 from typing import Mapping
 
 import matplotlib.pyplot as plt
 import numpy as np
 from torch import less_equal
 
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../VirtualLidarMap/")
+from virtuallidarmap import getvirtuallidarmap
+
 EXTEND_AREA = 2.0
-
-
-def file_read(f):
-    """
-    Reading LIDAR laser beams (angles and corresponding distance data)
-    """
-    with open(f) as data:
-        measures = [line.split(",") for line in data]
-    angles = []
-    distances = []
-    for measure in measures:
-        angles.append(float(measure[0]))
-        distances.append(float(measure[1]))
-    angles = np.array(angles)
-    distances = np.array(distances)
-    return angles, distances
-
 
 def bresenham(start, end):
     """
@@ -204,6 +193,19 @@ def generate_ray_casting_grid_map(ox, oy, xy_resolution, breshen=True):
             occupancy_map[ix + 1][iy + 1] = 1.0  # extend the occupied area
     return occupancy_map, min_x, max_x, min_y, max_y, xy_resolution
 
+def farthestdistance(ang, dists):
+    index = 0
+    for j in range(len(dists)):
+        if dists[j] > dists[index]:
+            index = j
+    return ang[index], dists[index]
+
+def nearestclosestdistance(ang, dists, index):
+    if dists[index - 1] < dists[index + 1]:
+        return ang[index - 1], dists[index - 1]
+    else:
+        return ang[index + 1], dists[index + 1]
+
 def main():
     """
     Example usage
@@ -211,7 +213,14 @@ def main():
     print(__file__, "start")
 
     xy_resolution = 0.02  # x-y grid resolution
-    ang, dist = file_read("lidar02.csv")
+    ang, dist = getvirtuallidarmap("lidar03")
+
+    fangle, fdist = farthestdistance(ang, dist)
+    _fx = fdist * math.cos(fangle)
+    _fy = fdist * math.sin(fangle)
+    fx = np.array([0, _fx])
+    fy = np.array([0, _fy])
+
     ox = np.sin(ang) * dist
     oy = np.cos(ang) * dist
     occupancy_map, min_x, max_x, min_y, max_y, xy_resolution = \
@@ -230,6 +239,7 @@ def main():
     plt.plot([oy, np.zeros(np.size(oy))], [ox, np.zeros(np.size(oy))], "ro-")
     plt.axis("equal")
     plt.plot(0.0, 0.0, "ob")
+    plt.plot(fx, fy)
     plt.gca().set_aspect("equal", "box")
     bottom, top = plt.ylim()  # return the current y-lim
     plt.ylim((top, bottom))  # rescale y axis, to match the grid orientation
