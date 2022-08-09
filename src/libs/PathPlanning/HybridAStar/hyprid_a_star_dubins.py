@@ -10,12 +10,12 @@ from scipy.spatial import cKDTree
 sys.path.append(os.path.dirname(os.path.abspath(__file__))
                 + "/")
 sys.path.append(os.path.dirname(os.path.abspath(__file__))
-                + "/../DubinsPath")
+                + "/..")
 sys.path.append(os.path.dirname(os.path.abspath(__file__))
                 + "/../ReedsSheppPath")
 try:
     from dynamic_programming_heuristic import calc_distance_heuristic
-    import dubins_path_planner as dubins
+    import DubinsPath.dubins_path_planner as dubins
     import reeds_shepp_path_planning as rs
     from car import move, check_car_collision, MAX_STEER, WB, plot_car,\
         BUBBLE_R
@@ -63,6 +63,21 @@ class Path:
         self.direction_list = direction_list
         self.cost = cost
 
+class DubinsPath:
+    """
+    Path data container
+    """
+
+    def __init__(self):
+        # course segment length  (negative value is backward segment)
+        self.lengths = []
+        # course segment type char ("S": straight, "L": left, "R": right)
+        self.ctypes = []
+        self.L = 0.0  # Total lengths of the path
+        self.x = []  # x positions
+        self.y = []  # y positions
+        self.yaw = []  # orientations [rad]
+        self.directions = []  # directions (1:forward, -1:backward)
 
 class Config:
 
@@ -162,17 +177,28 @@ def analytic_expansion(current, goal, ox, oy, kd_tree):
     goal_yaw = goal.yaw_list[-1]
 
     max_curvature = math.tan(MAX_STEER) / WB
-    paths = rs.calc_paths(start_x, start_y, start_yaw,
-                          goal_x, goal_y, goal_yaw,
-                          max_curvature, step_size=MOTION_RESOLUTION)
+    path_x, path_y, path_yaw, mode, lengths = dubins.plan_dubins_path(start_x,
+                                                                      start_y, 
+                                                                      start_yaw, 
+                                                                      goal_x, 
+                                                                      goal_y,
+                                                                      goal_yaw,
+                                                                      max_curvature, 
+                                                                      step_size=MOTION_RESOLUTION, 
+                                                                      selected_types=None)
 
-    if not paths:
+    if not list(path_x):
         return None
 
     best_path, best = None, None
 
-    for path in paths:
-        if check_car_collision(path.x, path.y, path.yaw, ox, oy, kd_tree):
+    path = DubinsPath()
+    path.x = path_x
+    path.y = path_y
+    path.yaw = path_yaw
+    path. = path_x
+    path.x = path_x
+    if check_car_collision(Path.x, Path.y, Path.yaw, ox, oy, kd_tree):
             cost = calc_rs_path_cost(path)
             if not best or best > cost:
                 best = cost

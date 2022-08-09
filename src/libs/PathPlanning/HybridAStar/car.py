@@ -30,7 +30,7 @@ from angle import rot_mat_2d
 # LB = 0.19  # distance from rear to vehicle back end
 
 WB = 3  # rear to front wheel
-W = 4  # width of car
+W = 2  # width of car
 LF = 1.9  # distance from rear to vehicle front end
 LB = 1.9  # distance from rear to vehicle back end
 

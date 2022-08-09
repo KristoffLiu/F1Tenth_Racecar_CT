@@ -20,7 +20,7 @@ import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../VirtualLidarMap/")
 from virtuallidarmap import getvirtuallidarmap
 
-EXTEND_AREA = 1.0
+EXTEND_AREA = 5.0
 
 def bresenham(start, end):
     """
@@ -72,12 +72,13 @@ def calc_grid_map_config(ox, oy, xy_resolution):
     Calculates the size, and the maximum distances according to the the
     measurement center
     """
-    min_x = round(min(ox) - EXTEND_AREA / 2.0)
-    min_y = round(min(oy) - EXTEND_AREA / 2.0)
-    max_x = round(max(ox) + EXTEND_AREA / 2.0)
-    max_y = round(max(oy) + EXTEND_AREA / 2.0)
-    xw = int(round((max_x - min_x) / xy_resolution))
-    yw = int(round((max_y - min_y) / xy_resolution))
+    min_x = min(ox) / xy_resolution - EXTEND_AREA / 2.0
+    min_y = min(oy) / xy_resolution - EXTEND_AREA / 2.0
+    max_x = max(ox) / xy_resolution + EXTEND_AREA / 2.0
+    max_y = max(oy) / xy_resolution + EXTEND_AREA / 2.0
+
+    xw = int(max_x - min_x)
+    yw = int(max_y - min_y)
     print("The grid map is ", xw, "x", yw, ".")
     return min_x, min_y, max_x, max_y, xw, yw
 
@@ -157,27 +158,25 @@ def generate_ray_casting_grid_map(ox, oy, xy_resolution, breshen=True):
     min_x, min_y, max_x, max_y, x_w, y_w = calc_grid_map_config(
         ox, oy, xy_resolution)
     # default 0.5 -- [[0.5 for i in range(y_w)] for i in range(x_w)]
-    occupancy_map = np.ones((x_w, y_w)) / 2
-    center_x = int(
-        round(-min_x / xy_resolution))  # center x coordinate of the grid map
-    center_y = int(
-        round(-min_y / xy_resolution))  # center y coordinate of the grid map
+    occupancy_map = np.zeros((x_w, y_w))
+    center_x = int(0 - min_x + EXTEND_AREA / 2.0)  # center x coordinate of the grid map
+    center_y = int(0 - min_y + EXTEND_AREA / 2.0)  # center y coordinate of the grid map
     # occupancy grid computed with bresenham ray casting
     if breshen:
         for (x, y) in zip(ox, oy):
             # x coordinate of the the occupied area
-            ix = int(round((x - min_x) / xy_resolution))
+            ix = int(x / xy_resolution - min_x)
             # y coordinate of the the occupied area
-            iy = int(round((y - min_y) / xy_resolution))
+            iy = int(y / xy_resolution - min_y)
             laser_beams = bresenham((center_x, center_y), (
                 ix, iy))  # line form the lidar to the occupied point
             for laser_beam in laser_beams:
                 occupancy_map[laser_beam[0]][
-                    laser_beam[1]] = 0.0  # free area 0.0
-            occupancy_map[ix][iy] = 1.0  # occupied area 1.0
-            occupancy_map[ix + 1][iy] = 1.0  # extend the occupied area
-            occupancy_map[ix][iy + 1] = 1.0  # extend the occupied area
-            occupancy_map[ix + 1][iy + 1] = 1.0  # extend the occupied area
+                    laser_beam[1]] = 1.0  # free area 0.0
+            occupancy_map[ix][iy] = 0.5  # occupied area 1.0
+            occupancy_map[ix + 1][iy] = 0.5  # extend the occupied area
+            occupancy_map[ix][iy + 1] = 0.5  # extend the occupied area
+            occupancy_map[ix + 1][iy + 1] = 0.5  # extend the occupied area
     # occupancy grid computed with with flood fill
     else:
         occupancy_map = init_flood_fill((center_x, center_y), (ox, oy),
@@ -214,7 +213,7 @@ def main():
     print(__file__, "start")
 
     xy_resolution = 0.02  # x-y grid resolution
-    ang, dist = getvirtuallidarmap("lidar03")
+    ang, dist = getvirtuallidarmap("lidar04")
 
     fangle, fdist = farthestdistance(ang, dist)
     _fx = fdist * math.cos(fangle)

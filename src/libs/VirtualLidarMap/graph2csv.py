@@ -24,7 +24,8 @@ def azimuthAngle( x1, y1, x2, y2):
 
 def importlidar02():
     from PIL import Image
-    im = Image.open("lidar03.png")
+    import os
+    im = Image.open(os.path.abspath(__file__).replace("graph2csv.py","") + "/" + "lidar04.png")
 
     import matplotlib.pyplot as plt
 
@@ -56,13 +57,15 @@ def importlidar02():
             angle -= math.pi * 2.0
         distance = math.sqrt(pt[1]**2 + pt[0]**2)
         final.append([angle, distance])
-    np.savetxt("lidar03.csv", final, fmt="%f", delimiter=",") 
+    np.savetxt(os.path.abspath(__file__).replace("graph2csv.py","") + "/" + "lidar04.csv", final, fmt="%f", delimiter=",") 
 
     x = []
     y = []
     for finalpt in final:
         x.append(finalpt[1] * math.cos(finalpt[0]))
         y.append(finalpt[1] * math.sin(finalpt[0]))
+
+    
 
     plt.plot(x, y, 'oc')
     bottom, top = plt.ylim()  # return the current y-lim
