@@ -139,8 +139,11 @@ def calc_obstacle_map(ox, oy, resolution, vr):
     max_x = round(max(ox))
     max_y = round(max(oy))
 
-    x_width = round(max_x - min_x)
-    y_width = round(max_y - min_y)
+    x_width = max_x
+    y_width = max_y
+
+    # x_width = round(max_x - min_x)
+    # y_width = round(max_y - min_y)
 
     # obstacle map generation
     obstacle_map = [[False for _ in range(y_width)] for _ in range(x_width)]

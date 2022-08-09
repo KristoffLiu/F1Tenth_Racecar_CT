@@ -8,6 +8,8 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__))
+                + "/")
+sys.path.append(os.path.dirname(os.path.abspath(__file__))
                 + "/../ReedsSheppPath")
 try:
     from dynamic_programming_heuristic import calc_distance_heuristic

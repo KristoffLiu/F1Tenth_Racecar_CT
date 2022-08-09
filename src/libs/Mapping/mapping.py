@@ -15,11 +15,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch import less_equal
 
+
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../VirtualLidarMap/")
 from virtuallidarmap import getvirtuallidarmap
 
-EXTEND_AREA = 2.0
+EXTEND_AREA = 1.0
 
 def bresenham(start, end):
     """
@@ -226,6 +227,7 @@ def main():
     occupancy_map, min_x, max_x, min_y, max_y, xy_resolution = \
         generate_ray_casting_grid_map(ox, oy, xy_resolution, True)
     xy_res = np.array(occupancy_map).shape
+
     plt.figure(1, figsize=(10, 4))
     plt.subplot(122)
     plt.imshow(occupancy_map, cmap="PiYG_r")

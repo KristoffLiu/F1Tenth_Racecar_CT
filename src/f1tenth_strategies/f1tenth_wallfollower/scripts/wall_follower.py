@@ -67,14 +67,14 @@ def set_speedmode(speed_m):
     if speed_mode == 0:
         speed = 0.0
     elif speed_mode == 1:
-        speed = 2.5
+        speed = 2.0
     elif speed_mode == 2:
-        speed = 3.0
+        speed = 2.5
     elif speed_mode == 3:
-        speed = 4.0
+        speed = 3.5
     elif speed_mode == 4:
-        speed = 7.0
-    print("current speed mode: " + str(speed_mode))
+        speed = 6.5
+    print("current speed mode: " + str(speed_mode) + " - " + str(speed))
 
 
 def wall_following(distance_apart):
