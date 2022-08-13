@@ -30,9 +30,9 @@ from angle import rot_mat_2d
 # LB = 0.19  # distance from rear to vehicle back end
 
 WB = 3  # rear to front wheel
-W = 2  # width of car
-LF = 1.9  # distance from rear to vehicle front end
-LB = 1.9  # distance from rear to vehicle back end
+W = 1  # width of car
+LF = 0.8 # distance from rear to vehicle front end
+LB = 0.8  # distance from rear to vehicle back end
 
 MAX_STEER = 0.6  # [rad] maximum steering angle
 

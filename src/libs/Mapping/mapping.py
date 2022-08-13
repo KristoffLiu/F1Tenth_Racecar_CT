@@ -102,15 +102,15 @@ def init_flood_fill(center_point, obstacle_points, xy_points, min_coord,
     ox, oy = obstacle_points
     xw, yw = xy_points
     min_x, min_y = min_coord
-    occupancy_map = (np.ones((xw, yw))) * 0.5
+    occupancy_map = (np.zeros((xw, yw)))
     for (x, y) in zip(ox, oy):
         # x coordinate of the the occupied area
-        ix = int(round((x - min_x) / xy_resolution))
+        ix = int(x / xy_resolution - min_x)
         # y coordinate of the the occupied area
-        iy = int(round((y - min_y) / xy_resolution))
+        iy = int(y / xy_resolution - min_y)
         free_area = bresenham((prev_ix, prev_iy), (ix, iy))
         for fa in free_area:
-            occupancy_map[fa[0]][fa[1]] = 0  # free area 0.0
+            occupancy_map[fa[0]][fa[1]] = 1  # free area 0.0
         prev_ix = ix
         prev_iy = iy
     return occupancy_map
@@ -130,23 +130,23 @@ def flood_fill(center_point, occupancy_map):
         nx, ny = n
         # West
         if nx > 0:
-            if occupancy_map[nx - 1, ny] == 0.5:
-                occupancy_map[nx - 1, ny] = 0.0
+            if occupancy_map[nx - 1, ny] == 0.0:
+                occupancy_map[nx - 1, ny] = 1.0
                 fringe.appendleft((nx - 1, ny))
         # East
         if nx < sx - 1:
-            if occupancy_map[nx + 1, ny] == 0.5:
-                occupancy_map[nx + 1, ny] = 0.0
+            if occupancy_map[nx + 1, ny] == 0.0:
+                occupancy_map[nx + 1, ny] = 1.0
                 fringe.appendleft((nx + 1, ny))
         # North
         if ny > 0:
-            if occupancy_map[nx, ny - 1] == 0.5:
-                occupancy_map[nx, ny - 1] = 0.0
+            if occupancy_map[nx, ny - 1] == 0.0:
+                occupancy_map[nx, ny - 1] = 1.0
                 fringe.appendleft((nx, ny - 1))
         # South
         if ny < sy - 1:
-            if occupancy_map[nx, ny + 1] == 0.5:
-                occupancy_map[nx, ny + 1] = 0.0
+            if occupancy_map[nx, ny + 1] == 0.0:
+                occupancy_map[nx, ny + 1] = 1.0
                 fringe.appendleft((nx, ny + 1))
 
 
@@ -174,23 +174,29 @@ def generate_ray_casting_grid_map(ox, oy, xy_resolution, breshen=True):
                 occupancy_map[laser_beam[0]][
                     laser_beam[1]] = 1.0  # free area 0.0
             occupancy_map[ix][iy] = 0.5  # occupied area 1.0
-            occupancy_map[ix + 1][iy] = 0.5  # extend the occupied area
-            occupancy_map[ix][iy + 1] = 0.5  # extend the occupied area
-            occupancy_map[ix + 1][iy + 1] = 0.5  # extend the occupied area
+            # occupancy_map[ix + 1][iy] = 0.5  # extend the occupied area
+            # occupancy_map[ix][iy + 1] = 0.5  # extend the occupied area
+            # occupancy_map[ix + 1][iy + 1] = 0.5  # extend the occupied area
     # occupancy grid computed with with flood fill
     else:
         occupancy_map = init_flood_fill((center_x, center_y), (ox, oy),
                                         (x_w, y_w),
                                         (min_x, min_y), xy_resolution)
+        
+        # return occupancy_map, min_x, max_x, min_y, max_y, xy_resolution
+
         flood_fill((center_x, center_y), occupancy_map)
         occupancy_map = np.array(occupancy_map, dtype=float)
         for (x, y) in zip(ox, oy):
-            ix = int(round((x - min_x) / xy_resolution))
-            iy = int(round((y - min_y) / xy_resolution))
-            occupancy_map[ix][iy] = 1.0  # occupied area 1.0
-            occupancy_map[ix + 1][iy] = 1.0  # extend the occupied area
-            occupancy_map[ix][iy + 1] = 1.0  # extend the occupied area
-            occupancy_map[ix + 1][iy + 1] = 1.0  # extend the occupied area
+            ix = int(x / xy_resolution - min_x)
+            iy = int(y / xy_resolution - min_y)
+            occupancy_map[ix][iy] = 0.5 # occupied area 1.0
+            # occupancy_map[ix + 1][iy] = 1.0  # extend the occupied area
+            # occupancy_map[ix][iy + 1] = 1.0  # extend the occupied area
+            # occupancy_map[ix + 1][iy + 1] = 1.0  # extend the occupied area
+        # occupancy_map[occupancy_map == 0] = 0.9
+        # occupancy_map[occupancy_map == 1] = 0
+        # occupancy_map[occupancy_map == 0.9] = 1
     return occupancy_map, min_x, max_x, min_y, max_y, xy_resolution
 
 def farthestdistance(ang, dists):
@@ -212,32 +218,36 @@ def main():
     """
     print(__file__, "start")
 
-    xy_resolution = 0.02  # x-y grid resolution
-    ang, dist = getvirtuallidarmap("lidar04")
+    xy_resolution = 0.2  # x-y grid resolution
+    ang, dist = getvirtuallidarmap("data4")
+    dist = np.concatenate(([0.4 for _ in range(25)],dist[25:155],[0.4 for _ in range(205)]),axis = 0)
 
     fangle, fdist = farthestdistance(ang, dist)
-    _fx = fdist * math.cos(fangle)
-    _fy = fdist * math.sin(fangle)
+    _fx = - fdist * math.cos(fangle)
+    _fy = - fdist * math.sin(fangle)
     fx = np.array([0, _fx])
     fy = np.array([0, _fy])
 
-    ox = np.sin(ang) * dist
-    oy = np.cos(ang) * dist
+    ox = - np.cos(ang) * dist
+    oy = - np.sin(ang) * dist
+    
     occupancy_map, min_x, max_x, min_y, max_y, xy_resolution = \
-        generate_ray_casting_grid_map(ox, oy, xy_resolution, True)
+        generate_ray_casting_grid_map(oy, ox, xy_resolution, False)
     xy_res = np.array(occupancy_map).shape
+
+
 
     plt.figure(1, figsize=(10, 4))
     plt.subplot(122)
-    plt.imshow(occupancy_map, cmap="PiYG_r")
+    plt.imshow(occupancy_map, cmap="RdYlGn_r")
     # cmap = "binary" "PiYG_r" "PiYG_r" "bone" "bone_r" "RdYlGn_r"
-    plt.clim(-0.4, 1.4)
+    plt.clim(0, 1.0)
     plt.gca().set_xticks(np.arange(-.5, xy_res[1], 1), minor=True)
     plt.gca().set_yticks(np.arange(-.5, xy_res[0], 1), minor=True)
     plt.grid(True, which="minor", color="w", linewidth=0.6, alpha=0.5)
     plt.colorbar()
     plt.subplot(121)
-    plt.plot([oy, np.zeros(np.size(oy))], [ox, np.zeros(np.size(oy))], "ro-")
+    plt.plot([ox, np.zeros(np.size(oy))], [oy, np.zeros(np.size(oy))], "ro-")
     plt.axis("equal")
     plt.plot(0.0, 0.0, "ob")
     plt.plot(fx, fy)

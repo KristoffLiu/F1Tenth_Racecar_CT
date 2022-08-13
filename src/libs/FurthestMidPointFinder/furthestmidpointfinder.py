@@ -10,6 +10,8 @@ def furthestdistance_index(angles, dists):
     return index
 
 def nearestclosestdistance_index(ang, dists, index):
+    if 0 > index - 10 or len(dists) <= index + 10:
+        return index
     if dists[index - 10] < dists[index + 10]:
         return index - 10
     else:
