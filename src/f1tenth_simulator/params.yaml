@@ -26,7 +26,7 @@ moment_inertia: .04712 # kg m^2 (estimated as a rectangle with width and height 
 update_pose_rate: 0.008333333333333333333
 
 # Lidar simulation parameters
-scan_beams: 771 #1080
+scan_beams: 1080 #771 #1080
 scan_field_of_view: 4.712388981 #6.2831853 #4.71 # radians
 
 # The distance from the center of the

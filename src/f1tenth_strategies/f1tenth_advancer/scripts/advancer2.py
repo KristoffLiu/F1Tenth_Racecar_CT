@@ -2,11 +2,14 @@
 #! /usr/bin/env python
 import math
 import threading
+import matplotlib.pyplot as plt
 import rospy
 import numpy as np
-import time
+#from scipy.spatial.transform import Rotation as R
 import sys, os
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../../../")
+from libs.FurthestMidPointFinder.furthestmidpointfinder import find_furthest_midpoint
 
 from sensor_msgs.msg import LaserScan
 from ackermann_msgs.msg import AckermannDrive, AckermannDriveStamped
@@ -16,77 +19,57 @@ from geometry_msgs.msg import Pose
 from nav_msgs.msg import Odometry
 
 class F1tenthAdvancer:
-    def __init__(self,
-                is_simulator = True,
-                min_speed = 2.0, 
-                max_speed = 4.0, 
-                safety_dist = 8.0):
-        self.is_simulator = is_simulator
-        
+    def __init__(self, min_speed=2.0, max_speed=4.0, safety_dist=8.0):
         self.MIN_SPEED = min_speed
         self.MAX_SPEED = max_speed
         self.LIDAR_2_FRONTCAR_DISTANCE = 0.15
-        self.BRAKE_DISTANCE = 1.0
+        self.BRAKE_DISTANCE = 0.7
         self.SAFETY_DISTANCE = 2.0
         self.MAX_REACT_DISTANCE = safety_dist
         self.MAX_STEERING_ANGLE = 0.4189
         self.FILLER_VALUE = 100.0
 
-        self.CAR_WIDTH = 0.185
+        self.CAR_WIDTH = 0.085
 
         self.MIN_ROAD_WIDTH = 2.0
         self.DISTANCE_APART = 1.0
 
         self.NOTICE_GAP_WIDTH = 0.05
 
+        # self.DISTANT_NARROW_ANGLE = math.degrees(math.asin((self.CAR_WIDTH + self.NOTICE_GAP_WIDTH * 2) / 2 / self.MAX_REACT_DISTANCE))
+        # self.NEAR_NARROW_ANGLE = math.degrees(math.asin((self.CAR_WIDTH + self.NOTICE_GAP_WIDTH * 2) / self.SAFETY_DISTANCE))
+        # self.BRAKE_NARROW_ANGLE = math.degrees(math.asin((self.CAR_WIDTH + self.NOTICE_GAP_WIDTH * 2) / self.BRAKE_DISTANCE))
+
         self.speed = 0
         self.steering_angle = 0
-
         self.lidar_data = []
-        self.odom = None
 
         self.count = 0
 
-        if is_simulator:
-            from scipy.spatial.transform import Rotation as R
+        self.odom = None
 
-            self.odom_topic = '/odom'
-            self.odom_pub = rospy.Subscriber(self.odom_topic, Odometry, self.odom)
+        
+        #self.odom_topic = '/odom'
+        #self.odom_pub = rospy.Subscriber(self.odom_topic, Odometry, self.get_odom)
 
-            self._scan_topic = '/scan'
-            self._scan_subscriber = rospy.Subscriber(self._scan_topic, LaserScan, self.scan_simulated)
+        self._scan_topic = '/scan'
+        self._scan_subscriber = rospy.Subscriber(self._scan_topic, LaserScan, self.scan_data)
 
-            self._drive_topic = '/auto_drive'
-            self._drive_publisher = rospy.Publisher(self._drive_topic, AckermannDriveStamped, queue_size=1)
+        self._drive_topic = '/tianracer/ackermann_cmd'
+        self._drive_publisher = rospy.Publisher(self._drive_topic, AckermannDrive, queue_size=1)
 
-            self._vis_pub = [rospy.Publisher("/visualization_marker", Marker, queue_size=10)]
-        else:
-            self._scan_topic = '/scan'
-            self._scan_subscriber = rospy.Subscriber(self._scan_topic, LaserScan, self.scan)
+        self._vis_pub = [rospy.Publisher("/visualization_marker", Marker, queue_size=10)]
 
-            self._drive_topic = '/tianracer/ackermann_cmd'
-            self._drive_publisher = rospy.Publisher(self._drive_topic, AckermannDrive, queue_size=1)
-
-    def scan_simulated(self, msg):
-        prev = time.time()
-        if self.count == 4:
+    def scan_data(self, msg):
+        if self.count == 0:
             self.lidar_data = [self.get_range(msg, i)
                                for i in range(90, -91, -1)]
-            self.step_whenlidarupdate()
+            self.stepwhenlidarupdate()
             self.count = 0
-            print(time.time() - prev)
         else:
             self.count += 1
     
-    def scan(self, msg):
-        prev = time.time()
-        self.lidar_data = [self.get_range(msg, i)
-                           for i in range(90, -91, -1)]
-        self.step_whenlidarupdate()
-        self.count = 0
-        print(time.time() - prev)
-    
-    def odom(self, msg):
+    def get_odom(self, msg):
         self.odom = msg
 
     def get_range(self, msg, angle, deg=True):
@@ -109,7 +92,7 @@ class F1tenthAdvancer:
             dis = self.FILLER_VALUE
         return dis
 
-    def step_whenlidarupdate(self):
+    def stepwhenlidarupdate(self):
         if self.lidar_data == []:
             return
         self.steering_angle = 0
@@ -119,13 +102,14 @@ class F1tenthAdvancer:
         self.steering_angle += self.steer_servo(min_front_dist)
         self.side_perception()
 
-        drive_msg = AckermannDrive(steering_angle=self.steering_angle,  speed=self.speed)
-        drive_st_msg = AckermannDriveStamped(drive=drive_msg)
-        self._drive_publisher.publish(drive_st_msg)
+        drive_msg = AckermannDrive(
+            steering_angle=self.steering_angle,  speed=self.speed)
+        # drive_st_msg = AckermannDriveStamped(drive=drive_msg)
+        self._drive_publisher.publish(drive_msg)
 
-        # print("steering: ", self.steering_angle)
-        # print("speed: ", self.speed)
-        # print("min distance: ", min_front_dist)
+        print("steering: ", self.steering_angle)
+        print("speed: ", self.speed)
+        print("min distance: ", min_front_dist)
 
     def step(self):
         if self.lidar_data == []:
@@ -138,12 +122,12 @@ class F1tenthAdvancer:
         self.side_perception()
 
         drive_msg = AckermannDrive(steering_angle=self.steering_angle,  speed=self.speed)
-        drive_st_msg = AckermannDriveStamped(drive=drive_msg)
-        self._drive_publisher.publish(drive_st_msg)
+        # drive_st_msg = AckermannDriveStamped(drive=drive_msg)
+        self._drive_publisher.publish(drive_msg)
 
-        # print("steering: ", self.steering_angle)
-        # print("speed: ", self.speed)
-        # print("min distance: ", min_front_dist)
+        print("steering: ", self.steering_angle)
+        print("speed: ", self.speed)
+        print("min distance: ", min_front_dist)
 
     def display_text_in_rviz(self):
         if self.odom != None:
@@ -231,22 +215,22 @@ class F1tenthAdvancer:
         dists = self.lidar_data[0:180]
         midpt_angle, midpt_dist = find_furthest_midpoint(angles, dists)
 
-        if self.odom != None:
+        # if self.odom != None:
 
-            mx = math.cos(np.radians(midpt_angle)) * midpt_dist
-            my = - math.sin(np.radians(midpt_angle)) * midpt_dist
+        #     mx = math.cos(np.radians(midpt_angle)) * midpt_dist
+        #     my = - math.sin(np.radians(midpt_angle)) * midpt_dist
 
-            _x = mx
-            _y = my
+        #     _x = mx
+        #     _y = my
             
-            yaw = self._createYawFromQuaternion(self.odom.pose.pose.orientation)
-            mx = math.cos(yaw)*_x - math.sin(yaw)*_y
-            my = math.cos(yaw)*_y + math.sin(yaw)*_x
+        #     yaw = self._createYawFromQuaternion(self.odom.pose.pose.orientation)
+        #     mx = math.cos(yaw)*_x - math.sin(yaw)*_y
+        #     my = math.cos(yaw)*_y + math.sin(yaw)*_x
 
-            mx += self.odom.pose.pose.position.x
-            my += self.odom.pose.pose.position.y
+        #     mx += self.odom.pose.pose.position.x
+        #     my += self.odom.pose.pose.position.y
 
-            self.vision_mark(mx, my)
+            # self.vision_mark(mx, my)
 
         steering_delta += self._steer_narrow_front()
         if self.lidar_data[0] < 0.08 or self.lidar_data[180] < 0.08:
@@ -287,38 +271,39 @@ class F1tenthAdvancer:
         else:
             return - 0.025
 
-    def vision_mark(self, x, y):
-        mark = Marker()
-        mark.header.frame_id = "/map"
-        mark.header.stamp = rospy.Time.now()
-        mark.ns = "showen_point"
-        mark.id = 1
-        mark.type = Marker().POINTS
-        mark.action = Marker().ADD
-        mark.pose.orientation.w = 1.0
-        mark.scale.x = 0.4
-        mark.scale.y = 0.2
-        mark.scale.z = 0.5
-        mark.color.a = 1.0
-        mark.color.r = 0.2
-        mark.color.g = 1.0
-        mark.color.b = 0.3
-        # mark.lifetime = rospy.Duration(0.02, 0)
-        mark.points.append(Point(x, y, 0))
-        self._vis_pub[0].publish(mark)
+    # def vision_mark(self, x, y):
 
-    def _createQuaternionFromYaw(self, yaw):
-        # input: r p y
-        r = R.from_euler('zyx', [0, 0, yaw], degrees=False).as_quat()
-        # output: w x y z
-        return [r[3], r[2], r[1], r[0]]
+    #     mark = Marker()
+    #     mark.header.frame_id = "/map"
+    #     mark.header.stamp = rospy.Time.now()
+    #     mark.ns = "showen_point"
+    #     mark.id = 1
+    #     mark.type = Marker().POINTS
+    #     mark.action = Marker().ADD
+    #     mark.pose.orientation.w = 1.0
+    #     mark.scale.x = 0.4
+    #     mark.scale.y = 0.2
+    #     mark.scale.z = 0.5
+    #     mark.color.a = 1.0
+    #     mark.color.r = 0.2
+    #     mark.color.g = 1.0
+    #     mark.color.b = 0.3
+    #     # mark.lifetime = rospy.Duration(0.02, 0)
+    #     mark.points.append(Point(x, y, 0))
+    #     self._vis_pub[0].publish(mark)
 
-    def _createYawFromQuaternion(self, quaternion):
-        [y, p, r] = R.from_quat([quaternion.x,
-                                quaternion.y,
-                                quaternion.z,
-                                quaternion.w]).as_euler('zyx', degrees=False)
-        return y
+    # def _createQuaternionFromYaw(self, yaw):
+    #     # input: r p y
+    #     r = R.from_euler('zyx', [0, 0, yaw], degrees=False).as_quat()
+    #     # output: w x y z
+    #     return [r[3], r[2], r[1], r[0]]
+
+    # def _createYawFromQuaternion(self, quaternion):
+    #     [y, p, r] = R.from_quat([quaternion.x,
+    #                             quaternion.y,
+    #                             quaternion.z,
+    #                             quaternion.w]).as_euler('zyx', degrees=False)
+    #     return y
 
     def side_perception(self):
         left_side_angles = [i for i in range(-45, -30, 1)]
@@ -344,8 +329,6 @@ class F1tenthAdvancer:
                 min_dist_index = i
         return angles[min_dist_index], dists[min_dist_index]
 
-    def display(self):
-        pass
 
 def call_rosspin():
     rospy.spin()
@@ -356,17 +339,39 @@ if __name__ == '__main__':
         print(__file__ + " start!!")
         rospy.init_node('advancer', anonymous=True)
         rospy_thread = rospy.Rate(120)
-        f1tenth = F1tenthAdvancer(True, 2.5, 5.0, 8.0)
+        f1tenth = F1tenthAdvancer(2.0, 3, 5.5)
 
         spin_thread = threading.Thread(target=call_rosspin).start()
 
+        # i = 0
+        # x = []
+        # y = []
+        # angles = np.arange(180, -1, -1)
+        # cos = np.cos(np.radians(angles))
+        # sin = np.sin(np.radians(angles))
+
+        # while i < 100000:
+        #     plt.clf()
+        #     ax = plt.gca()
+        #     ax.set_aspect(1)
+        #     if not f1tenth.lidar_data:
+        #         x = []
+        #         y = []
+        #     else:
+        #         lidar_data = np.array(f1tenth.lidar_data)
+        #         x = cos * lidar_data
+        #         y = sin * lidar_data
+        #     plt.scatter(x, y)
+        #     i += 1
+        #     plt.pause(0.03)
+        #     plt.ioff()
+
         while not rospy.core.is_shutdown():
-            if f1tenth.is_simulator:
-                f1tenth.display()
+            # os.system('clear')
             # f1tenth.step()
-            f1tenth.display_text_in_rviz()
+            # f1tenth.display_text_in_rviz()
 
             rospy_thread.sleep()
 
     except rospy.ROSInterruptException:
-        pass                                     
+        pass
